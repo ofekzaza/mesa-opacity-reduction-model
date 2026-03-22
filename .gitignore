@@ -5,3 +5,5 @@
 */photos
 .mesa_temp_cache
 *.pyc
+backup.git/
+tmp.json
