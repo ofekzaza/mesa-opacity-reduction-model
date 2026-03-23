@@ -84,17 +84,18 @@ def plot(mass: int, name: str, model_var: str, y_axis: str, y_units: str, value_
 
     # Plot heatmap
     plt.figure(figsize=(10, 6))
+    data_for_plot = DATA * 100
     plt.imshow(
-        DATA,
+        data_for_plot,
         cmap="viridis",
         origin="lower",
         aspect="auto",
-        vmax=1,
-        vmin=math.floor(np.min(DATA) * 100) / 100,
+        vmax=100,
+        vmin=math.floor(np.min(data_for_plot)),
         extent=[model_numbers[0], model_numbers[-1], common_y[0], common_y[-1]],
     )
 
-    plt.colorbar(label=utils.parse_name_for_plots(value_axis))
+    plt.colorbar(label=utils.parse_name_for_plots(value_axis) + " [%]")
 
     # Update x-axis labels to include star_age
     ax = plt.gca()
