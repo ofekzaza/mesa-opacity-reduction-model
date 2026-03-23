@@ -30,23 +30,31 @@ MASS = 60
 import utils
 
 def plot_hr_diagram(mass: int, names: list[str]):
+    base_colors = {}
     # Iterate over each history file
     for name in names:
         path = f"{mass}m-{name}/LOGS/history.data"
-        plot_name = utils.parse_name_for_plots(name)
+        
         try:
             # Load the history data
             history = mr.MesaData(path)
+            
+            kwargs, is_winds, base_name = utils.get_line_kwargs(name, base_colors)
+
             # Plot log_L vs. log_Teff
-            (line,) = plt.plot(history.log_Teff, history.log_L, label=plot_name, linewidth=0.8)
+            (line,) = plt.plot(history.log_Teff, history.log_L, **kwargs)
             color = line.get_color()
+            
+            if not is_winds:
+                base_colors[base_name] = color
+                
             plt.plot(history.log_Teff[-1], history.log_L[-1], "o", color=color)
         except FileNotFoundError:
             print(f"Warning: {path}.data not found. Skipping.")
 
     # Customize the plot
     plt.xlabel("log(Teff) [K]")
-    plt.ylabel("log(Luminosity / L☉)")
+    plt.ylabel("log(L/L☉)")
     # plt.title(f"{mass} Mass Star Hertzsprung-Russell Diagram")
     plt.gca().invert_xaxis()  # HR diagrams have Teff decreasing to the right
     plt.grid(True)

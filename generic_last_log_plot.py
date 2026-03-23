@@ -233,10 +233,10 @@ MASS = 60
 def plot(mass: int, names: list[str], x_axis: str, x_units: str, y_axis: str, y_units: str):
     plt.figure()
     
+    base_colors = {}
+    
     # Iterate over each history file
     for name in names:
-        plot_name = utils.parse_name_for_plots(name)
-
         path = f"{mass}m-{name}/LOGS"
         try:
             print(path)
@@ -254,8 +254,14 @@ def plot(mass: int, names: list[str], x_axis: str, x_units: str, y_axis: str, y_
             x_data = getattr(prof, x_axis)
             y_data = getattr(prof, y_axis)
 
-            (line,) = plt.plot(x_data, y_data, "-", linewidth=0.8, label=plot_name)
+            kwargs, is_winds, base_name = utils.get_line_kwargs(name, base_colors)
+
+            (line,) = plt.plot(x_data, y_data, **kwargs)
             color = line.get_color()
+
+            if not is_winds:
+                base_colors[base_name] = color
+
             plt.plot(x_data[-1], y_data[-1], "o", markersize=6, color=color)
             plt.plot(x_data[0], y_data[0], "o", markersize=6, color=color)
 
