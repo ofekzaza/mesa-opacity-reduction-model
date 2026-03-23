@@ -4,6 +4,7 @@ import json
 import numpy as np
 import mesa_reader as mr
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import utils
 
 
@@ -66,12 +67,21 @@ def plot(mass: int, name: str, model_var: str, y_axis: str, y_units: str, value_
         val_data = VAL_all[j]
 
         # Interpolate to common y grid
-        interp_val = np.interp(common_y, y_data, val_data)
+        # Sort y_data to ensure it is increasing for np.interp
+        sort_idx = np.argsort(y_data)
+        interp_val = np.interp(
+            common_y, 
+            y_data[sort_idx], 
+            val_data[sort_idx], 
+            left=np.nan, 
+            right=np.nan
+        )
         DATA[:, j] = interp_val
 
     # Save raw matrix for debugging
     with open("tmp.json", "w") as f:
-        json.dump(DATA.tolist(), f)
+        # replace np.nan with None for valid JSON
+        json.dump(np.where(np.isnan(DATA), None, DATA).tolist(), f)
 
     # Sort by model number (important!)
     model_numbers = np.array(model_numbers)
@@ -84,18 +94,41 @@ def plot(mass: int, name: str, model_var: str, y_axis: str, y_units: str, value_
 
     # Plot heatmap
     plt.figure(figsize=(10, 6))
+    ax = plt.gca()
     data_for_plot = DATA * 100
-    plt.imshow(
+    
+    cmap = plt.get_cmap("viridis").copy()
+    cmap.set_bad(color=ax.get_facecolor())
+    
+    # Use PowerNorm to expand the contrast near the maximum values (gamma > 1)
+    # This prevents the bulk of data near 100 from looking identical, making tiny drops obvious!
+    min_val = math.floor(np.nanmin(data_for_plot))
+    norm = mcolors.PowerNorm(gamma=4.0, vmin=min_val, vmax=100)
+
+    # Use pcolormesh to map non-linear model_numbers accurately
+    plt.pcolormesh(
+        model_numbers,
+        common_y,
         data_for_plot,
-        cmap="viridis",
-        origin="lower",
-        aspect="auto",
-        vmax=100,
-        vmin=math.floor(np.min(data_for_plot)),
-        extent=[model_numbers[0], model_numbers[-1], common_y[0], common_y[-1]],
+        cmap=cmap,
+        norm=norm,
+        shading="nearest"
     )
 
-    plt.colorbar(label=utils.parse_name_for_plots(value_axis) + " [%]")
+    # Add boundary lines for min and max logRho of the star
+    min_rhos = np.array([np.min(Y_all[k]) for k in range(n_models)])[sort_idx]
+    max_rhos = np.array([np.max(Y_all[k]) for k in range(n_models)])[sort_idx]
+    plt.plot(model_numbers, min_rhos, color='red', linewidth=1.5, linestyle='--', label='Star Boundaries')
+    plt.plot(model_numbers, max_rhos, color='red', linewidth=1.5, linestyle='--')
+    plt.legend(loc='upper right', framealpha=0.7)
+
+    cbar = plt.colorbar(label=utils.parse_name_for_plots(value_axis) + " [%]")
+    # Manually configure visually evenly-spaced ticks to prevent overlapping labels at the bottom due to PowerNorm
+    norm_vals = np.linspace(0, 1, 6)
+    tick_vals = min_val + (100 - min_val) * (norm_vals ** (1 / 4.0))
+    tick_vals = np.unique(np.round(tick_vals).astype(int))
+    cbar.set_ticks(tick_vals)
+    cbar.set_ticklabels([str(t) for t in tick_vals])
 
     # Update x-axis labels to include star_age
     ax = plt.gca()
